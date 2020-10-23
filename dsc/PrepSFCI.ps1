@@ -21,7 +21,6 @@ configuration PrepSFCI
     Import-DscResource -ModuleName xComputerManagement,xActiveDirectory,xPendingReboot,xNetworking
 
     [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Admincreds.UserName)", $Admincreds.Password)
-    [System.Management.Automation.PSCredential]$ServiceCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($svcCreds.UserName)", $svcCreds.Password)
 
     Node localhost
     {
