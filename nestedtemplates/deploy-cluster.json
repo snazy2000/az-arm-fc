@@ -197,7 +197,7 @@
 				},
 				"protectedSettings": {
 					"items": {
-						"adminPassword": "[parameters('joinAdminPassword')]"
+						"joinAdminPassword": "[parameters('joinAdminPassword')]"
 					}
 				}
 			}
@@ -238,7 +238,7 @@
 				},
 				"protectedSettings": {
 					"items": {
-						"adminPassword": "[parameters('joinAdminPassword')]",
+						"joinAdminPassword": "[parameters('joinAdminPassword')]",
 						"witnessStorageKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts',variables('witnessStorageName')),variables('apiVersionStorage')).keys[0].value]"
 					}
 				}
