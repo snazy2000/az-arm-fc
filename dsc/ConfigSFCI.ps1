@@ -10,7 +10,7 @@ configuration ConfigSFCI
         [System.Management.Automation.PSCredential]$Admincreds,
 
         [Parameter(Mandatory)]
-        [String]$ClusterName,
+        [String]$diClusterName,
 
         [Parameter(Mandatory)]
         [String]$vmNamePrefix,
@@ -110,7 +110,7 @@ configuration ConfigSFCI
 
         xCluster FailoverCluster
         {
-            Name = $ClusterName
+            Name = $diClusterName
             DomainAdministratorCredential = $DomainCreds
             Nodes = $Nodes
 	        DependsOn = "[xComputer]DomainJoin"
