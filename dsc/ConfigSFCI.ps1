@@ -30,7 +30,7 @@ configuration ConfigSFCI
         [Int]$RetryIntervalSec=30
     )
 
-    Import-DscResource -ModuleName xComputerManagement, xFailOverCluster, xActiveDirectory, xSOFS, xSQLServer, xPendingReboot,xNetworking
+    Import-DscResource -ModuleName xComputerManagement, xFailOverCluster, xActiveDirectory, xPendingReboot,xNetworking
  
     [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Admincreds.UserName)", $Admincreds.Password)
     

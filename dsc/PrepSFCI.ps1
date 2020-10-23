@@ -12,23 +12,17 @@ configuration PrepSFCI
         [Parameter(Mandatory)]
         [System.Management.Automation.PSCredential]$AdminCreds,
 
-        [Parameter(Mandatory)]
-        [System.Management.Automation.PSCredential]$svcCreds,
-        
         [String]$DomainNetbiosName=(Get-NetBIOSName -DomainName $DomainName),
 
         [Int]$RetryCount=20,
         [Int]$RetryIntervalSec=30
     )
 
-    Import-DscResource -ModuleName xComputerManagement,xActiveDirectory,xSQLServer,xPendingReboot,xNetworking
+    Import-DscResource -ModuleName xComputerManagement,xActiveDirectory,xPendingReboot,xNetworking
 
     [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Admincreds.UserName)", $Admincreds.Password)
-    [System.Management.Automation.PSCredential]$DomainFQDNCreds = New-Object System.Management.Automation.PSCredential ("${DomainName}\$($Admincreds.UserName)", $Admincreds.Password)
-    
     [System.Management.Automation.PSCredential]$ServiceCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($svcCreds.UserName)", $svcCreds.Password)
-    [System.Management.Automation.PSCredential]$ServiceFQDNCreds = New-Object System.Management.Automation.PSCredential ("${DomainName}\$($svcCreds.UserName)", $svcCreds.Password)
-    
+
     Node localhost
     {
         # Set LCM to reboot if needed
@@ -87,43 +81,8 @@ configuration PrepSFCI
 
         xPendingReboot Reboot1
         { 
-            Name = "Reboot1"
-            DependsOn = "[Script]CleanSQL"
-        }
-
-        xSQLServerFailoverClusterSetup PrepareMSSQLSERVER
-        {
-            DependsOn = "[xPendingReboot]Reboot1"
-            Action = "Prepare"
-            SourcePath = "C:\"
-            SourceFolder = "SQLServerFull"
-            UpdateSource = ""
-            SetupCredential = $DomainCreds
-            Features = "SQLENGINE,AS"
-            InstanceName = "MSSQLSERVER"
-            FailoverClusterNetworkName = "SQLFCI"
-            SQLSvcAccount = $ServiceCreds
-        }
-
-        xFirewall SQLFirewall
-        {
-            Name                  = "SQL Firewall Rule"
-            DisplayName           = "SQL Firewall Rule"
-            Ensure                = "Present"
-            Enabled               = "True"
-            Profile               = ("Domain", "Private", "Public")
-            Direction             = "Inbound"
-            RemotePort            = "Any"
-            LocalPort             = ("445", "1433", "37000","37001")
-            Protocol              = "TCP"
-            Description           = "Firewall Rule for SQL"
-            DependsOn = "[xSQLServerFailoverClusterSetup]PrepareMSSQLSERVER"
-        }
-
-        xPendingReboot Reboot2
-        { 
-            Name = 'Reboot2'
-            DependsOn = "[xFirewall]SQLFirewall"
+            Name = "xComputer"
+            DependsOn = "[Script]DomainJoin"
         }
 
     }
