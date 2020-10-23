@@ -29,12 +29,6 @@
 				"description": "DNS domain name for existing Active Directory domain"
 			}
 		},
-		"clusterNumber": {
-			"type": "string",
-			"metadata": {
-				"description": "cluster number"
-			}
-		},
 		"adminUsername": {
 			"type": "string",
 			"metadata": {
