@@ -155,6 +155,9 @@
 					"vmName": {
 						"value": "[concat(variables('vmNamePrefix'), parameters('iteration')[copyIndex()])]"
 					},
+					"machineName": {
+						"value": "[concat(variables('machineNamePrefix'), parameters('iteration')[copyIndex()])]"
+					},
 					"vmAvailabilitySetName": {
 						"value": "[variables('vmAvailabilitySetName')]"
 					},
