@@ -78,13 +78,6 @@ configuration ConfigSFCI
             Ensure = "Present"
         }
 
-        WindowsFeature ASDistTransaction
-        {
-            Name = "AS-Dist-Transaction"
-            Ensure = "Present"
-        }
-
-
         WindowsFeature FS
         {
             Name = "FS-FileServer"
