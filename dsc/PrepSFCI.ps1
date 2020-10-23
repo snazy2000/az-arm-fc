@@ -81,7 +81,7 @@ configuration PrepSFCI
         xPendingReboot Reboot1
         { 
             Name = "xComputer"
-            DependsOn = "[Script]DomainJoin"
+            DependsOn = "[xComputer]DomainJoin"
         }
 
     }
