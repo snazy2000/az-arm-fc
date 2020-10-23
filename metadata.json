@@ -1,0 +1,7 @@
+{
+  "itemDisplayName": "DI Cluster",
+  "description": "This template creates Azure VMs on an existing VNET, and it provisions them as a Failover Cluster.",
+  "summary": "This template creates Azure VMs on an existing VNET, and it provisions them as a Failover Cluster.",
+  "githubUsername": "snazy2000",
+  "dateUpdated": "2020-10-23"
+}

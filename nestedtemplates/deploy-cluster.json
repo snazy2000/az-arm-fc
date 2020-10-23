@@ -1,0 +1,249 @@
+﻿{
+	"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"namePrefix": {
+			"type": "string",
+			"minLength": 3,
+			"maxLength": 13,
+			"metadata": {
+				"description": "Naming prefix for each new resource created. 3-char min, 14-char max, lowercase alphanumeric"
+			}
+		},
+		"iteration": { 
+			"type": "array", 
+			"defaultValue": [ 
+					"01", 
+					"02"
+			 ] 
+	 },
+	 "diClusterName": {
+			"type": "string",
+			"metadata": {
+				"description": "DI Service cluster name you want as it may be different to vm name"
+			}
+		},
+		"domainName": {
+			"type": "string",
+			"metadata": {
+				"description": "DNS domain name for existing Active Directory domain"
+			}
+		},
+		"clusterNumber": {
+			"type": "string",
+			"metadata": {
+				"description": "cluster number"
+			}
+		},
+		"adminUsername": {
+			"type": "string",
+			"metadata": {
+				"description": "Name of the Administrator of the existing Active Directory Domain"
+			}
+		},
+		"adminPassword": {
+			"type": "securestring",
+			"minLength": 12,
+			"metadata": {
+				"description": "Password for the Administrator account of the existing Active Directory Domain"
+			}
+		},   
+		"nicSubnetUri": {
+			"type": "string",
+			"metadata": {
+				"description": "Resource ID for existing vnet/subnet to which VM NICs should be attached"
+			}
+		},
+		"vmSize": {
+			"type": "string",
+			"metadata": {
+				"description": "Size of the VMs to be created"
+			}
+		},
+        "witnessStorageName": {
+			"type": "string",
+			"metadata": {
+				"description": "Cloud witness Storage Name"
+			}
+		},
+		"vmCount": {
+			"type": "int",
+			"minValue": 2,
+			"maxValue": 2,
+			"metadata": {
+				"description": "Number of VMs to be created in cluster (Min=2, Max=3)"
+			}
+		},
+		"_artifactsLocation": {
+			"type": "string"
+		},
+		"_artifactsLocationSasToken": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"apiVersionStorage": "2016-01-01",
+		"witnessStorageName": "[concat(parameters('witnessStorageName'),'')]",
+		"vmNamePrefix": "[concat(parameters('namePrefix'),'')]",
+		"vmAvailabilitySetName": "[concat(variables('vmNamePrefix'),'as')]",
+		"clusterName": "[concat(parameters('namePrefix'),'')]",
+		"diClusterName": "[concat(parameters('diClusterName'),'')]",
+		"vmLoopTemplateURL": "[concat(parameters('_artifactsLocation'),'/nestedtemplates/newVM.json',parameters('_artifactsLocationSasToken'))]",
+		"sfciPrepModulesURL": "[concat(parameters('_artifactsLocation'),'/dsc/prep-sfci.ps1.zip',parameters('_artifactsLocationSasToken'))]",
+		"sfciPrepFunction": "PrepSFCI.ps1\\PrepSFCI",
+		"sfciConfigModulesURL": "[concat(parameters('_artifactsLocation'),'/dsc/config-sfci.ps1.zip',parameters('_artifactsLocationSasToken'))]",
+		"sfciConfigFunction": "ConfigSFCI.ps1\\ConfigSFCI"
+    },
+	"resources": [
+		{
+			"type": "Microsoft.Compute/availabilitySets",
+			"name": "[variables('vmAvailabilitySetName')]",
+			"apiVersion": "2019-07-01",
+			"location": "[resourceGroup().location]",
+			"properties": {
+			    "platformFaultDomainCount": 2,
+				"platformUpdateDomainCount": 2
+			},
+            "sku": {
+                "name": "Aligned"
+            }
+		},
+		{
+			"name": "[concat(variables('vmNamePrefix'), parameters('iteration')[copyIndex()], '-NIC01')]",
+			"type": "Microsoft.Network/networkInterfaces",
+			"location": "[resourceGroup().location]",
+			"apiVersion": "2018-10-01",
+			"copy": {
+				"name": "nicLoop",
+				"count": "[parameters('vmCount')]"
+			},
+			"properties": {
+				"ipConfigurations": [
+					{
+						"name": "ipconfig1",
+						"properties": {
+							"subnet": {
+								"id": "[parameters('nicSubnetUri')]"
+							},
+							"privateIPAllocationMethod": "Dynamic"
+						}
+					}
+				],
+				"enableAcceleratedNetworking": true 
+			}
+		},
+		{
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2015-01-01",
+			"copy": {
+				"name": "virtualMachineLoop",
+				"count": "[parameters('vmCount')]"
+			},
+			"name": "[concat(variables('vmNamePrefix'),parameters('iteration')[copyIndex()],'-newVM')]",
+			"dependsOn": [
+				"nicLoop",
+				"[resourceId('Microsoft.Compute/availabilitySets', variables('vmAvailabilitySetName'))]"
+			],
+			"properties": {
+				"mode": "Incremental",
+				"templateLink": {
+					"uri": "[variables('vmLoopTemplateURL')]"
+				},
+				"parameters": {
+					"vmName": {
+						"value": "[concat(variables('vmNamePrefix'), parameters('iteration')[copyIndex()])]"
+					},
+					"vmAvailabilitySetName": {
+						"value": "[variables('vmAvailabilitySetName')]"
+					},
+					"vmSize": {
+						"value": "[parameters('vmSize')]"
+					},
+					"adminUsername": {
+						"value": "[parameters('adminUsername')]"
+					},
+					"adminPassword": {
+						"value": "[parameters('adminPassword')]"
+					}
+				}
+			}
+		},
+		{
+			"type": "Microsoft.Compute/virtualMachines/extensions",
+			"name": "[concat(variables('vmNamePrefix'),parameters('iteration')[copyIndex(1)],'/sfciPrep')]",
+			"apiVersion": "2015-06-15",
+			"location": "[resourceGroup().location]",
+			"dependsOn": [
+				"virtualMachineLoop"
+			],
+			"copy": {
+				"name": "virtualMachineExtensionLoop",
+				"count": "[sub(parameters('vmCount'),1)]"
+			},
+			"properties": {
+				"publisher": "Microsoft.Powershell",
+				"type": "DSC",
+				"typeHandlerVersion": "2.20",
+				"autoUpgradeMinorVersion": true,
+				"settings": {
+					"modulesUrl": "[variables('sfciPrepModulesURL')]",
+					"configurationFunction": "[variables('sfciPrepFunction')]",
+					"properties": {
+						"domainName": "[parameters('domainName')]",
+						"adminCreds": {
+								"userName": "[parameters('adminUserName')]",
+								"password": "PrivateSettingsRef:adminPassword"
+							}
+					}
+				},
+				"protectedSettings": {
+					"items": {
+						"adminPassword": "[parameters('adminPassword')]"
+					}
+				}
+			}
+		},
+		{
+			"type": "Microsoft.Compute/virtualMachines/extensions",
+			"name": "[concat(variables('vmNamePrefix'),'a/sfciConfig')]",
+			"apiVersion": "2015-06-15",
+			"location": "[resourceGroup().location]",
+			"dependsOn": [
+				"virtualMachineLoop",
+				"virtualMachineExtensionLoop"
+			],
+			"properties": {
+				"publisher": "Microsoft.Powershell",
+				"type": "DSC",
+				"typeHandlerVersion": "2.20",
+				"autoUpgradeMinorVersion": true,
+				"settings": {
+					"modulesUrl": "[variables('sfciConfigModulesURL')]",
+					"configurationFunction": "[variables('sfciConfigFunction')]",
+					"properties": {
+						"domainName": "[parameters('domainName')]",
+						"clusterName": "[variables('clusterName')]",
+						"diClusterName": "[variables('diClusterName')]",
+						"vmNamePrefix": "[variables('vmNamePrefix')]",
+						"vmCount": "[parameters('vmCount')]",
+						"witnessStorageName": "[variables('witnessStorageName')]",
+						"witnessStorageKey": {
+							"userName": "PLACEHOLDER-DO-NOT-USE",
+							"password": "PrivateSettingsRef:witnessStorageKey"
+						},
+						"adminCreds": {
+							"userName": "[parameters('adminUserName')]",
+							"password": "PrivateSettingsRef:adminPassword"
+						}
+					}
+				},
+				"protectedSettings": {
+					"items": {
+						"adminPassword": "[parameters('adminPassword')]",
+						"witnessStorageKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts',variables('witnessStorageName')),variables('apiVersionStorage')).keys[0].value]"
+					}
+				}
+			}
+		}
+	]
+}
