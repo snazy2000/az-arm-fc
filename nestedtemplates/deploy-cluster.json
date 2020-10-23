@@ -29,19 +29,26 @@
 				"description": "DNS domain name for existing Active Directory domain"
 			}
 		},
-		"adminUsername": {
+		"joinAdminUsername": {
 			"type": "string",
 			"metadata": {
 				"description": "Name of the Administrator of the existing Active Directory Domain"
 			}
 		},
-		"adminPassword": {
+		"joinAdminPassword": {
 			"type": "securestring",
-			"minLength": 12,
+			"minLength": 5,
 			"metadata": {
 				"description": "Password for the Administrator account of the existing Active Directory Domain"
 			}
 		},   
+		"localAdminPassword": {
+			"type": "securestring",
+			"minLength": 5,
+			"metadata": {
+				"description": "Password for the Administrator account of the existing Active Directory Domain"
+			}
+		},  
 		"nicSubnetUri": {
 			"type": "string",
 			"metadata": {
@@ -154,11 +161,8 @@
 					"vmSize": {
 						"value": "[parameters('vmSize')]"
 					},
-					"adminUsername": {
-						"value": "[parameters('adminUsername')]"
-					},
-					"adminPassword": {
-						"value": "[parameters('adminPassword')]"
+					"localAdminPassword": {
+						"value": "[parameters('localAdminPassword')]"
 					}
 				}
 			}
@@ -186,14 +190,14 @@
 					"properties": {
 						"domainName": "[parameters('domainName')]",
 						"adminCreds": {
-								"userName": "[parameters('adminUserName')]",
-								"password": "PrivateSettingsRef:adminPassword"
+								"userName": "[parameters('joinAdminUserName')]",
+								"password": "PrivateSettingsRef:joinAdminPassword"
 							}
 					}
 				},
 				"protectedSettings": {
 					"items": {
-						"adminPassword": "[parameters('adminPassword')]"
+						"adminPassword": "[parameters('joinAdminPassword')]"
 					}
 				}
 			}
@@ -227,14 +231,14 @@
 							"password": "PrivateSettingsRef:witnessStorageKey"
 						},
 						"adminCreds": {
-							"userName": "[parameters('adminUserName')]",
-							"password": "PrivateSettingsRef:adminPassword"
+							"userName": "[parameters('joinAdminUserName')]",
+							"password": "PrivateSettingsRef:joinAdminPassword"
 						}
 					}
 				},
 				"protectedSettings": {
 					"items": {
-						"adminPassword": "[parameters('adminPassword')]",
+						"adminPassword": "[parameters('joinAdminPassword')]",
 						"witnessStorageKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts',variables('witnessStorageName')),variables('apiVersionStorage')).keys[0].value]"
 					}
 				}

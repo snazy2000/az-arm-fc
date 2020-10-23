@@ -29,13 +29,20 @@
 		"description": "DNS domain name for existing Active Directory domain."
 	  }
 	},
-	"adminUsername": {
+	"joinAdminUsername": {
 	  "type": "string",
 	  "metadata": {
 		"description": "Name of an Administrator account in the Active Directory Domain."
 	  }
 	},
-	"adminPassword": {
+	"joinAdminPassword": {
+	  "type": "securestring",
+	  "minLength": 15,
+	  "metadata": {
+		"description": "Password for the Administrator account."
+	  }
+	},
+    "localAdminPassword": {
 	  "type": "securestring",
 	  "minLength": 10,
 	  "metadata": {
@@ -106,11 +113,14 @@
 		  "domainName": {
 			"value": "[parameters('existingDomainName')]"
 		  },
-		  "adminUsername": {
-			"value": "[parameters('adminUsername')]"
+		  "joinAdminUsername": {
+			"value": "[parameters('joinAdminUsername')]"
 		  },
-		  "adminPassword": {
-			"value": "[parameters('adminPassword')]"
+		  "joinAdminPassword": {
+			"value": "[parameters('joinAdminPassword')]"
+		  },
+          "localAdminPassword": {
+			"value": "[parameters('localAdminPassword')]"
 		  },
 		  "diClusterName": {
 			"value": "[parameters('diClusterName')]"

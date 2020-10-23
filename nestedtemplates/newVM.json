@@ -11,10 +11,7 @@
         "vmSize": {
             "type": "string"
         },
-        "adminUsername": {
-            "type": "string"
-        },
-        "adminPassword": {
+        "localAdminPassword": {
             "type": "securestring"
         }
     },
@@ -33,8 +30,8 @@
                 },
                 "osProfile": {
                     "computerName": "[parameters('vmName')]",
-                    "adminUsername": "[parameters('adminUsername')]",
-                    "adminPassword": "[parameters('adminPassword')]",
+                    "adminUsername": "diadmin",
+                    "adminPassword": "[parameters('localAdminPassword')]",
                     "windowsConfiguration": {
                         "enableAutomaticUpdates": false,
                         "provisionVmAgent": true,
