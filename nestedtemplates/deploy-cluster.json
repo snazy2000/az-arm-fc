@@ -17,12 +17,6 @@
 					"02"
 			 ] 
 	 },
-	 "diClusterName": {
-			"type": "string",
-			"metadata": {
-				"description": "DI Service cluster name you want as it may be different to vm name"
-			}
-		},
 		"domainName": {
 			"type": "string",
 			"metadata": {
@@ -88,8 +82,7 @@
 		"vmNamePrefix": "[concat('VM', parameters('namePrefix'),'')]",
         "machineNamePrefix": "[concat(parameters('namePrefix'),'')]",
 		"vmAvailabilitySetName": "[concat(variables('vmNamePrefix'),'-UKS-AS01')]",
-		"clusterName": "[concat(parameters('namePrefix'),'')]",
-		"diClusterName": "[concat(parameters('diClusterName'),'')]",
+		"clusterName": "[concat(parameters('namePrefix'),'CL')]",
 		"vmLoopTemplateURL": "[concat(parameters('_artifactsLocation'),'/nestedtemplates/newVM.json',parameters('_artifactsLocationSasToken'))]",
 		"sfciPrepModulesURL": "[concat(parameters('_artifactsLocation'),'/dsc/prep-sfci.ps1.zip',parameters('_artifactsLocationSasToken'))]",
 		"sfciPrepFunction": "PrepSFCI.ps1\\PrepSFCI",
@@ -225,7 +218,6 @@
 					"properties": {
 						"domainName": "[parameters('domainName')]",
 						"clusterName": "[variables('clusterName')]",
-						"diClusterName": "[variables('diClusterName')]",
 						"vmNamePrefix": "[variables('machineNamePrefix')]",
 						"vmCount": "[parameters('vmCount')]",
 						"witnessStorageName": "[variables('witnessStorageName')]",
