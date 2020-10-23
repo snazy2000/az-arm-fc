@@ -78,8 +78,9 @@
 	"variables": {
 		"apiVersionStorage": "2016-01-01",
 		"witnessStorageName": "[concat(parameters('witnessStorageName'),'')]",
-		"vmNamePrefix": "[concat(parameters('namePrefix'),'')]",
-		"vmAvailabilitySetName": "[concat(variables('vmNamePrefix'),'as')]",
+		"vmNamePrefix": "[concat('VM', parameters('namePrefix'),'')]",
+        "machineNamePrefix": "[concat(parameters('namePrefix'),'')]",
+		"vmAvailabilitySetName": "[concat(variables('vmNamePrefix'),'-UKS-AS01')]",
 		"clusterName": "[concat(parameters('namePrefix'),'')]",
 		"diClusterName": "[concat(parameters('diClusterName'),'')]",
 		"vmLoopTemplateURL": "[concat(parameters('_artifactsLocation'),'/nestedtemplates/newVM.json',parameters('_artifactsLocationSasToken'))]",
@@ -133,7 +134,7 @@
 				"name": "virtualMachineLoop",
 				"count": "[parameters('vmCount')]"
 			},
-			"name": "[concat(variables('vmNamePrefix'),parameters('iteration')[copyIndex()],'-newVM')]",
+			"name": "[concat(variables('vmNamePrefix'),parameters('iteration')[copyIndex()])]",
 			"dependsOn": [
 				"nicLoop",
 				"[resourceId('Microsoft.Compute/availabilitySets', variables('vmAvailabilitySetName'))]"
@@ -218,7 +219,7 @@
 						"domainName": "[parameters('domainName')]",
 						"clusterName": "[variables('clusterName')]",
 						"diClusterName": "[variables('diClusterName')]",
-						"vmNamePrefix": "[variables('vmNamePrefix')]",
+						"vmNamePrefix": "[variables('machineNamePrefix')]",
 						"vmCount": "[parameters('vmCount')]",
 						"witnessStorageName": "[variables('witnessStorageName')]",
 						"witnessStorageKey": {
