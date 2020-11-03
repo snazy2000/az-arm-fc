@@ -101,12 +101,18 @@ configuration ConfigSFCI
 	        DependsOn = "[xWaitForADDomain]DscForestWait"
         }
 
+        xPendingReboot Reboot1
+        { 
+            Name = "xComputer"
+            DependsOn = "[xComputer]DomainJoin"
+        }
+
         xCluster FailoverCluster
         {
             Name = $ClusterName
             DomainAdministratorCredential = $DomainCreds
             Nodes = $Nodes
-	        DependsOn = "[xComputer]DomainJoin"
+	        DependsOn = "[WindowsFeature]ADPS"
         }
 
         Script CloudWitness
