@@ -178,13 +178,14 @@
 			"properties": {
 				"publisher": "Microsoft.Powershell",
 				"type": "DSC",
-				"typeHandlerVersion": "2.20",
+				"typeHandlerVersion": "2.77",
 				"autoUpgradeMinorVersion": true,
 				"settings": {
 					"modulesUrl": "[variables('sfciPrepModulesURL')]",
 					"configurationFunction": "[variables('sfciPrepFunction')]",
 					"properties": {
 						"domainName": "[parameters('domainName')]",
+						"clusterName": "[variables('clusterName')]",
 						"adminCreds": {
 								"userName": "[parameters('joinAdminUserName')]",
 								"password": "PrivateSettingsRef:joinAdminPassword"
@@ -210,7 +211,7 @@
 			"properties": {
 				"publisher": "Microsoft.Powershell",
 				"type": "DSC",
-				"typeHandlerVersion": "2.20",
+				"typeHandlerVersion": "2.77",
 				"autoUpgradeMinorVersion": true,
 				"settings": {
 					"modulesUrl": "[variables('sfciConfigModulesURL')]",

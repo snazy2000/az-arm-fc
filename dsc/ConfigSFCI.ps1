@@ -33,10 +33,6 @@ configuration ConfigSFCI
     Import-DscResource -ModuleName xComputerManagement, xFailOverCluster, xActiveDirectory, ComputerManagementDsc, xNetworking
  
     [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Admincreds.UserName)", $Admincreds.Password)
-    
-    $firstNode  = $vmNamePrefix+"01"
-    $secondNode = $vmNamePrefix+"02"
-    [System.Collections.ArrayList]$Nodes=@("$firstNode",$secondNode)
 
     Node localhost
     {
@@ -53,23 +49,22 @@ configuration ConfigSFCI
             Ensure = "Present"
         }
 
-        PendingReboot AfterFCInstall
-        { 
-            Name = "AfterFCInstall"
-            DependsOn = "[WindowsFeature]FC"
-        }
-
 		WindowsFeature FailoverClusterTools 
         { 
             Ensure = "Present" 
             Name = "RSAT-Clustering-Mgmt"
-            DependsOn = "[PendingReboot]AfterFCInstall"
         } 
 
         WindowsFeature FCPS
         {
             Name = "RSAT-Clustering-PowerShell"
             Ensure = "Present"
+        }
+
+        WindowsFeature FCCMD
+        {
+            Name      = 'RSAT-Clustering-CmdInterface'
+            Ensure    = 'Present'
         }
 
         WindowsFeature Telnet
@@ -113,37 +108,38 @@ configuration ConfigSFCI
             DependsOn = "[xComputer]DomainJoin"
         }
 
+        xWaitForCluster WaitForCluster
+        {
+            Name             = $ClusterName
+            RetryIntervalSec = 10
+            RetryCount       = 60
+            DependsOn        = '[PendingReboot]AfterDomainJoin'
+        }
+
         xCluster FailoverCluster
         {
             Name = $ClusterName
             DomainAdministratorCredential = $DomainCreds
-            Nodes = $Nodes
-	        DependsOn = "[WindowsFeature]ADPS"
+	        DependsOn = "[xWaitForCluster]WaitForCluster"
         }
 
-        Script CloudWitness
+        xClusterQuorum SetQuorumToNodeAndCloudMajority
         {
-            SetScript = "Set-ClusterQuorum -CloudWitness -AccountName ${witnessStorageName} -AccessKey $($witnessStorageKey.GetNetworkCredential().Password)"
-            TestScript = "(Get-ClusterQuorum).QuorumResource.Name -eq 'Cloud Witness'"
-            GetScript = "@{Ensure = if ((Get-ClusterQuorum).QuorumResource.Name -eq 'Cloud Witness') {'Present'} else {'Absent'}}"
+            IsSingleInstance        = 'Yes'
+            Type                    = 'NodeAndCloudMajority'
+            Resource                = $witnessStorageName
+            StorageAccountAccessKey = $($witnessStorageKey.GetNetworkCredential().Password)
             DependsOn = "[xCluster]FailoverCluster"
         }
 
-        Script IncreaseClusterTimeouts
+        xClusterProperty SetClusterProperties
         {
-            SetScript = "(Get-Cluster).SameSubnetDelay = 2000; (Get-Cluster).SameSubnetThreshold = 15; (Get-Cluster).CrossSubnetDelay = 3000; (Get-Cluster).CrossSubnetThreshold = 15"
-            TestScript = "(Get-Cluster).SameSubnetDelay -eq 2000 -and (Get-Cluster).SameSubnetThreshold -eq 15 -and (Get-Cluster).CrossSubnetDelay -eq 3000 -and (Get-Cluster).CrossSubnetThreshold -eq 15"
-            GetScript = "@{Ensure = if ((Get-Cluster).SameSubnetDelay -eq 2000 -and (Get-Cluster).SameSubnetThreshold -eq 15 -and (Get-Cluster).CrossSubnetDelay -eq 3000 -and (Get-Cluster).CrossSubnetThreshold -eq 15) {'Present'} else {'Absent'}}"
-            DependsOn = "[Script]CloudWitness"
-        }
-
-        # Likelely redundant
-        Script MoveClusterGroups1
-        {
-            SetScript = 'try {Get-ClusterGroup -ErrorAction SilentlyContinue | Move-ClusterGroup -Node $env:COMPUTERNAME -ErrorAction SilentlyContinue} catch {}'
-            TestScript = 'return $false'
-            GetScript = '@{Result = "Moved Cluster Group"}'
-            DependsOn = "[Script]IncreaseClusterTimeouts"
+            Name = $ClusterName
+            SameSubnetDelay = 2000
+            SameSubnetThreshold = 15
+            CrossSubnetDelay = 3000
+            CrossSubnetThreshold = 15
+            DependsOn = "[xClusterQuorum]SetQuorumToNodeAndCloudMajority"
         }
 
         xFirewall SQLFirewall
@@ -158,7 +154,7 @@ configuration ConfigSFCI
             LocalPort             = ("3549", "3306", "59999","10022", "10021")
             Protocol              = "TCP"
             Description           = "Firewall Rule for EPIC"
-            DependsOn             = "[Script]MoveClusterGroups1"
+            DependsOn             = "[xClusterProperty]SetClusterProperties"
         }
     }
 
@@ -186,4 +182,56 @@ function Get-NetBIOSName
             return $DomainName
         }
     }
+}
+
+function Enable-CredSSPNTLM
+{ 
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$DomainName
+    )
+    
+    # This is needed for the case where NTLM authentication is used
+
+    Write-Verbose 'STARTED:Setting up CredSSP for NTLM'
+   
+    Enable-WSManCredSSP -Role client -DelegateComputer localhost, *.$DomainName -Force -ErrorAction SilentlyContinue
+    Enable-WSManCredSSP -Role server -Force -ErrorAction SilentlyContinue
+
+    if(-not (Test-Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation -ErrorAction SilentlyContinue))
+    {
+        New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows -Name '\CredentialsDelegation' -ErrorAction SilentlyContinue
+    }
+
+    if( -not (Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation -Name 'AllowFreshCredentialsWhenNTLMOnly' -ErrorAction SilentlyContinue))
+    {
+        New-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation -Name 'AllowFreshCredentialsWhenNTLMOnly' -value '1' -PropertyType dword -ErrorAction SilentlyContinue
+    }
+
+    if (-not (Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation -Name 'ConcatenateDefaults_AllowFreshNTLMOnly' -ErrorAction SilentlyContinue))
+    {
+        New-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation -Name 'ConcatenateDefaults_AllowFreshNTLMOnly' -value '1' -PropertyType dword -ErrorAction SilentlyContinue
+    }
+
+    if(-not (Test-Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowFreshCredentialsWhenNTLMOnly -ErrorAction SilentlyContinue))
+    {
+        New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation -Name 'AllowFreshCredentialsWhenNTLMOnly' -ErrorAction SilentlyContinue
+    }
+
+    if (-not (Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowFreshCredentialsWhenNTLMOnly -Name '1' -ErrorAction SilentlyContinue))
+    {
+        New-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowFreshCredentialsWhenNTLMOnly -Name '1' -value "wsman/$env:COMPUTERNAME" -PropertyType string -ErrorAction SilentlyContinue
+    }
+
+    if (-not (Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowFreshCredentialsWhenNTLMOnly -Name '2' -ErrorAction SilentlyContinue))
+    {
+        New-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowFreshCredentialsWhenNTLMOnly -Name '2' -value "wsman/localhost" -PropertyType string -ErrorAction SilentlyContinue
+    }
+
+    if (-not (Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowFreshCredentialsWhenNTLMOnly -Name '3' -ErrorAction SilentlyContinue))
+    {
+        New-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowFreshCredentialsWhenNTLMOnly -Name '3' -value "wsman/*.$DomainName" -PropertyType string -ErrorAction SilentlyContinue
+    }
+
+    Write-Verbose "DONE:Setting up CredSSP for NTLM"
 }

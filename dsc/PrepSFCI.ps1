@@ -12,13 +12,16 @@ configuration PrepSFCI
         [Parameter(Mandatory)]
         [System.Management.Automation.PSCredential]$AdminCreds,
 
+        [Parameter(Mandatory)]
+        [String]$ClusterName,
+
         [String]$DomainNetbiosName=(Get-NetBIOSName -DomainName $DomainName),
 
         [Int]$RetryCount=20,
         [Int]$RetryIntervalSec=30
     )
 
-    Import-DscResource -ModuleName xComputerManagement,xActiveDirectory,ComputerManagementDsc,xNetworking
+    Import-DscResource -ModuleName xComputerManagement,xActiveDirectory,xFailOverCluster, ComputerManagementDsc,xNetworking
 
     [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Admincreds.UserName)", $Admincreds.Password)
 
@@ -37,17 +40,10 @@ configuration PrepSFCI
             Ensure = "Present"
         }
 
-        PendingReboot AfterFCInstall
-        { 
-            Name = "AfterFCInstall"
-            DependsOn = "[WindowsFeature]FC"
-        }
-
         WindowsFeature FailoverClusterTools 
         { 
             Ensure = "Present" 
             Name = "RSAT-Clustering-Mgmt"
-            DependsOn = "[PendingReboot]AfterFCInstall"
         } 
 
         WindowsFeature FCPS
@@ -56,6 +52,12 @@ configuration PrepSFCI
             Ensure = "Present"
         }
         
+        WindowsFeature FCCMD
+        {
+            Name      = 'RSAT-Clustering-CmdInterface'
+            Ensure    = 'Present'
+        }
+
         WindowsFeature ADPS
         {
             Name = "RSAT-AD-PowerShell"
@@ -95,6 +97,13 @@ configuration PrepSFCI
         { 
             Name = "AfterDomainJoin"
             DependsOn = "[xComputer]DomainJoin"
+        }
+
+        xCluster FailoverCluster
+        {
+            Name = $ClusterName
+            DomainAdministratorCredential = $DomainCreds
+	        DependsOn = "[PendingReboot]AfterDomainJoin"
         }
 
         xFirewall SQLFirewall
