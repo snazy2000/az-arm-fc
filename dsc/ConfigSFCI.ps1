@@ -30,7 +30,7 @@ configuration ConfigSFCI
         [Int]$RetryIntervalSec=30
     )
 
-    Import-DscResource -ModuleName xComputerManagement, xFailOverCluster, xActiveDirectory, xPendingReboot,xNetworking
+    Import-DscResource -ModuleName xComputerManagement, xFailOverCluster, xActiveDirectory, ComputerManagementDsc, xNetworking
  
     [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Admincreds.UserName)", $Admincreds.Password)
     
@@ -53,11 +53,17 @@ configuration ConfigSFCI
             Ensure = "Present"
         }
 
+        PendingReboot AfterFCInstall
+        { 
+            Name = "AfterFCInstall"
+            DependsOn = "[WindowsFeature]FC"
+        }
+
 		WindowsFeature FailoverClusterTools 
         { 
             Ensure = "Present" 
             Name = "RSAT-Clustering-Mgmt"
-			DependsOn = "[WindowsFeature]FC"
+            DependsOn = "[PendingReboot]AfterFCInstall"
         } 
 
         WindowsFeature FCPS
@@ -101,9 +107,9 @@ configuration ConfigSFCI
 	        DependsOn = "[xWaitForADDomain]DscForestWait"
         }
 
-        xPendingReboot Reboot1
+        PendingReboot AfterDomainJoin
         { 
-            Name = "xComputer"
+            Name = "AfterDomainJoin"
             DependsOn = "[xComputer]DomainJoin"
         }
 

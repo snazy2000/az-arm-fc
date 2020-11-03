@@ -18,7 +18,7 @@ configuration PrepSFCI
         [Int]$RetryIntervalSec=30
     )
 
-    Import-DscResource -ModuleName xComputerManagement,xActiveDirectory,xPendingReboot,xNetworking
+    Import-DscResource -ModuleName xComputerManagement,xActiveDirectory,ComputerManagementDsc,xNetworking
 
     [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Admincreds.UserName)", $Admincreds.Password)
 
@@ -37,12 +37,25 @@ configuration PrepSFCI
             Ensure = "Present"
         }
 
+        PendingReboot AfterFCInstall
+        { 
+            Name = "AfterFCInstall"
+            DependsOn = "[WindowsFeature]FC"
+        }
+
+        WindowsFeature FailoverClusterTools 
+        { 
+            Ensure = "Present" 
+            Name = "RSAT-Clustering-Mgmt"
+            DependsOn = "[PendingReboot]AfterFCInstall"
+        } 
+
         WindowsFeature FCPS
         {
             Name = "RSAT-Clustering-PowerShell"
             Ensure = "Present"
         }
-
+        
         WindowsFeature ADPS
         {
             Name = "RSAT-AD-PowerShell"
@@ -78,10 +91,25 @@ configuration PrepSFCI
             DependsOn = "[xWaitForADDomain]DscForestWait"
         }
 
-        xPendingReboot Reboot1
+        PendingReboot AfterDomainJoin
         { 
-            Name = "xComputer"
+            Name = "AfterDomainJoin"
             DependsOn = "[xComputer]DomainJoin"
+        }
+
+        xFirewall SQLFirewall
+        {
+            Name                  = "EPIC Firewall Rules"
+            DisplayName           = "EPIC Firewall Rules"
+            Ensure                = "Present"
+            Enabled               = "True"
+            Profile               = ("Domain", "Private", "Public")
+            Direction             = "Inbound"
+            RemotePort            = "Any"
+            LocalPort             = ("3549", "3306", "59999","10022", "10021")
+            Protocol              = "TCP"
+            Description           = "Firewall Rule for EPIC"
+            DependsOn             = "[PendingReboot]AfterDomainJoin"
         }
 
     }
