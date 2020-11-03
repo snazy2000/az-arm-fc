@@ -30,7 +30,7 @@ configuration ConfigSFCI
         [Int]$RetryIntervalSec=30
     )
 
-    Import-DscResource -ModuleName xComputerManagement, xFailOverCluster, xActiveDirectory, ComputerManagementDsc, xNetworking
+    Import-DscResource -ModuleName xComputerManagement,xFailOverCluster,ActiveDirectoryDsc,ComputerManagementDsc,xNetworking
  
     [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Admincreds.UserName)", $Admincreds.Password)
 
@@ -85,13 +85,11 @@ configuration ConfigSFCI
             Ensure = "Present"
         }
 
-        xWaitForADDomain DscForestWait 
+        WaitForADDomain DscForestWait
         { 
             DomainName = $DomainName 
-            DomainUserCredential= $DomainCreds
-            RetryCount = $RetryCount 
-            RetryIntervalSec = $RetryIntervalSec 
-	        DependsOn = "[WindowsFeature]ADPS"
+            Credential = $DomainCreds
+            DependsOn = "[WindowsFeature]ADPS"
         }
         
         xComputer DomainJoin
