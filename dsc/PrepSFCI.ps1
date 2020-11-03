@@ -88,7 +88,7 @@ configuration PrepSFCI
             Name = $env:COMPUTERNAME
             DomainName = $DomainName
             Credential = $DomainCreds
-            DependsOn = "[xWaitForADDomain]DscForestWait"
+            DependsOn = "[WaitForADDomain]DscForestWait"
         }
 
         PendingReboot AfterDomainJoin
